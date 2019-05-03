@@ -9,31 +9,45 @@ test_phrase = "да конечно нет"
 class NewScript:
     def __init__(self, json_file):
         self.json_file = json_file
+        self.database_file = json_file + ".db"
+        self.load_phrases_from_json()
 
     def load_phrases_from_json(self):
         with open(self.json_file, "r", encoding='utf-8') as read_file:
             loaded_json = json.load(read_file)
-            self._check_db_exist(self.json_file, loaded_json)
+            self._check_db_exist(loaded_json)
 
-    def _check_db_exist(self, loaded_filename, loaded_json):
-        db_extension = loaded_filename + ".db"
+    def get_dict_content(self, dict_name, phrase):
+        con = sqlite3.connect(self.database_file)
+        cur = con.cursor()
+        cur.execute('SELECT dict_content FROM rule_dicts WHERE dict_name like \"{}\"'.format(dict_name))
+
+        for rule_in_dict in list(cur.fetchone()):
+            rule_in_dict = re.sub(r'\"', '', rule_in_dict)
+            if re.match(rule_in_dict, phrase):
+                print('{} matched in {}'.format(phrase, rule_in_dict))
+
+        con.commit()
+        con.close()
+
+    def _check_db_exist(self, loaded_json):
         while True:
-            if os.path.isfile(db_extension):
-                print("База данных {} уже существует. Переписать?".format(db_extension))
+            if os.path.isfile(self.database_file):
+                print("База данных {} уже существует. Переписать?".format(self.database_file))
                 print("(Y)es | (N)o?")
 
                 answer = input()
                 pattern_for_yes = '(^[yY]$|^[yY][eE][sS]$|^[дД]$|^[дД][аА]$)'
 
                 if re.match(pattern_for_yes, answer):
-                    os.remove(db_extension)
-                    print("Удаляю старую версию базы данных {}".format(db_extension))
+                    os.remove(self.database_file)
+                    print("Удаляю старую версию базы данных {}".format(self.database_file))
                 else:
                     break
             else:
-                self._create_db(db_extension)
-                print("Создана база: {}".format(db_extension))
-                self._parse_phrases(loaded_json["phrases"], db_extension)
+                self._create_db(self.database_file)
+                print("Создана база: {}".format(self.database_file))
+                self._parse_phrases(loaded_json["phrases"], self.database_file)
                 break
 
     def _create_db(self, database_file):
@@ -64,7 +78,7 @@ class NewScript:
         for key, value in rule_dicts.items():
             pure_value = self._format_list_to_str(value)
             rule_dicts[key] = pure_value
-            print("{}\n{}\n\n".format(key, pure_value))
+            #print("{}\n{}\n\n".format(key, pure_value))
         self._write_data(db_extension, rule_dicts)
 
 
@@ -73,7 +87,7 @@ class PhrasesConditions:
         self.name = name
         self.description = description
         self.phrases_classes = phrases_classes
-        self.load_phrases_classes()
+        #self.load_phrases_classes()
         
     def __str__(self):
         return self.phrases_classes
@@ -82,21 +96,34 @@ class PhrasesConditions:
         for element in self.phrases_classes:
             print('this \"{}\"'.format(element.basic_phrase))
 
+    def match_phrase(self, phrase):
+        for phrase_class in self.phrases_classes:
+            phrase_class.try_match_phrase(phrase)
+
 
 class PhraseClass:
-    def __init__(self, basic_phrase, phrases_parts="test", next_state="test"):
+    def __init__(self, basic_phrase, *phrases_parts, next_state="test"):
         self.basic_phrase = basic_phrase
         self.phrases_parts = phrases_parts
         self.next_state = next_state
+        self.try_match_phrase(self.basic_phrase)
     
     def __str__(self):
         return '\"{}\"'.format(self.basic_phrase)
-        
-        
-yes = PhraseClass("да конечно")
+
+    def try_match_phrase(self, phrase):
+        for part in list(self.phrases_parts[0]):
+            #print(robotization.database_file)
+            robotization.get_dict_content(part, phrase)
+            #print("dict {}".format(part))
+
+
+robotization = NewScript('RobotizationCalls.json')
+yes = PhraseClass("да конечно", ["Yes", "Need"])
 print(yes)
-no = PhraseClass("нет конечно")
+no = PhraseClass("нет конечно", ["SayNo"])
 print(no)
 
 yes_no_conditions = PhrasesConditions("yes_no_conditions", "", yes, no)
+
 #yes_no_conditions.load_phrases_classes(yes, no)
