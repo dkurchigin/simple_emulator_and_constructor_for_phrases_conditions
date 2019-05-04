@@ -111,17 +111,45 @@ class PhrasesConditions:
         list_with_dicts_names = [phrase_class.phrases_parts for phrase_class in self.phrases_classes]
         dict_with_rules = robotization.get_dict_content(list_with_dicts_names)
 
+        #print(dict_with_rules)
+
         #try match phrase classes
         for phrase_class in self.phrases_classes:
             for dict_name in phrase_class.phrases_parts:
                 rules = dict_with_rules[dict_name]
-                print(dict_name, rules)
+                #print(dict_name, rules)
                 splited_rules = rules.split(',\n')
-                print(splited_rules)
 
+                for rule in splited_rules:
+                    #print(rule)
+                    rule = re.sub(r'\"', '', rule)
+                    rule = self._parse_rule_in_re_format(rule)
+                    print("\n", rule)
+                    if re.search(rule, phrase):
+                        print('{} matched in {} for {}'.format(phrase, rule, phrase_class.basic_phrase))
 
+    def _parse_rule_in_re_format(self, rule):
+        #print(rule)
+        deleted_any_symbol_charecters = re.split('\s[\.\*]+\s', rule)
+        #print(deleted_any_symbol_charecters)
+        if len(deleted_any_symbol_charecters) == 1:
+            return self._sub_symbols(deleted_any_symbol_charecters[0])
+        else:
+            return rule
+        #stupid_block = re.findall('\[.*\]', rule)
+        #print(stupid_block)
+        # if stupid_block:
+        #
 
+        #rule = re.sub(r'\[|\]', r'|', rule)
+        # print(rule)
 
+    def _sub_symbols(self, rule):
+        rule = re.sub(r'\[', '(', rule)
+        rule = re.sub(r'\s', '|', rule)
+        rule = re.sub(r'\]', ')', rule)
+        #print(rule)
+        return rule
     # for rule_in_dict in list(cur.fetchone()):
     #     rule_in_dict = re.sub(r'\"', '', rule_in_dict)
     #     if re.match(rule_in_dict, phrase):
@@ -150,7 +178,7 @@ yes = PhraseClass("да конечно", ["Yes", "Need"])
 #print(yes)
 no = PhraseClass("нет конечно", ["SayNo"])
 #print(no)
-no_need = PhraseClass("не нужно", ["NoNeed", "SayNo"])
+no_need = PhraseClass("не нужно", ["NoNeed"])
 
 yes_no_conditions = PhrasesConditions("yes_no_conditions", "", yes, no, no_need)
 yes_no_conditions.match_phrase(test_phrase)
