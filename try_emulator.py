@@ -17,18 +17,23 @@ class NewScript:
             loaded_json = json.load(read_file)
             self._check_db_exist(loaded_json)
 
-    def get_dict_content(self, dict_name, phrase):
+    def get_dict_content(self, *dict_names):
+        dict_names = list(dict_names[0])
+        dict_with_rules = {}
+
         con = sqlite3.connect(self.database_file)
         cur = con.cursor()
-        cur.execute('SELECT dict_content FROM rule_dicts WHERE dict_name like \"{}\"'.format(dict_name))
 
-        for rule_in_dict in list(cur.fetchone()):
-            rule_in_dict = re.sub(r'\"', '', rule_in_dict)
-            if re.match(rule_in_dict, phrase):
-                print('{} matched in {}'.format(phrase, rule_in_dict))
+        for parts_in_phrase in dict_names:
+            for one_dict in parts_in_phrase:
+                if one_dict not in dict_with_rules:
+                    cur.execute('SELECT dict_content FROM rule_dicts WHERE dict_name like \"{}\"'.format(one_dict))
+                    dict_with_rules[one_dict] = cur.fetchone()[0]
 
         con.commit()
         con.close()
+
+        return dict_with_rules
 
     def _check_db_exist(self, loaded_json):
         while True:
@@ -92,38 +97,62 @@ class PhrasesConditions:
     def __str__(self):
         return self.phrases_classes
         
-    def load_phrases_classes(self):
-        for element in self.phrases_classes:
-            print('this \"{}\"'.format(element.basic_phrase))
+    # def load_phrases_classes(self):
+    #     for element in self.phrases_classes:
+    #         print('this \"{}\"'.format(element.basic_phrase))
 
     def match_phrase(self, phrase):
-        for phrase_class in self.phrases_classes:
-            phrase_class.try_match_phrase(phrase)
+        #for phrase_class in self.phrases_classes:
+            #print(phrase_class)
+        self._match_all_phrase_classes(phrase)
 
+    def _match_all_phrase_classes(self, phrase):
+        # get dictionary with "Rule Name":"Rules"
+        list_with_dicts_names = [phrase_class.phrases_parts for phrase_class in self.phrases_classes]
+        dict_with_rules = robotization.get_dict_content(list_with_dicts_names)
+
+        #try match phrase classes
+        for phrase_class in self.phrases_classes:
+            for dict_name in phrase_class.phrases_parts:
+                rules = dict_with_rules[dict_name]
+                print(dict_name, rules)
+                splited_rules = rules.split(',\n')
+                print(splited_rules)
+
+
+
+
+    # for rule_in_dict in list(cur.fetchone()):
+    #     rule_in_dict = re.sub(r'\"', '', rule_in_dict)
+    #     if re.match(rule_in_dict, phrase):
+    #         print('{} matched in {}'.format(phrase, rule_in_dict))
 
 class PhraseClass:
     def __init__(self, basic_phrase, *phrases_parts, next_state="test"):
         self.basic_phrase = basic_phrase
-        self.phrases_parts = phrases_parts
+        self.phrases_parts = list(phrases_parts[0])
         self.next_state = next_state
-        self.try_match_phrase(self.basic_phrase)
+        # self.try_match_phrase(self.basic_phrase)
     
     def __str__(self):
-        return '\"{}\"'.format(self.basic_phrase)
+        return '\n\"{}\"\nParts:{}\nnext_state:{}'.format(self.basic_phrase, self.phrases_parts, self.next_state)
 
-    def try_match_phrase(self, phrase):
-        for part in list(self.phrases_parts[0]):
-            #print(robotization.database_file)
-            robotization.get_dict_content(part, phrase)
-            #print("dict {}".format(part))
+    # def try_match_phrase(self, phrase):
+    #     for part in list(self.phrases_parts[0]):
+    #         #print(robotization.database_file)
+    #         robotization.get_dict_content(part, phrase)
+    #         #print("dict {}".format(part))
 
 
 robotization = NewScript('RobotizationCalls.json')
-yes = PhraseClass("да конечно", ["Yes", "Need"])
-print(yes)
-no = PhraseClass("нет конечно", ["SayNo"])
-print(no)
 
-yes_no_conditions = PhrasesConditions("yes_no_conditions", "", yes, no)
+yes = PhraseClass("да конечно", ["Yes", "Need"])
+#print(yes)
+no = PhraseClass("нет конечно", ["SayNo"])
+#print(no)
+no_need = PhraseClass("не нужно", ["NoNeed", "SayNo"])
+
+yes_no_conditions = PhrasesConditions("yes_no_conditions", "", yes, no, no_need)
+yes_no_conditions.match_phrase(test_phrase)
 
 #yes_no_conditions.load_phrases_classes(yes, no)
