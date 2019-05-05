@@ -111,8 +111,6 @@ class PhrasesConditions:
         list_with_dicts_names = [phrase_class.phrases_parts for phrase_class in self.phrases_classes]
         dict_with_rules = robotization.get_dict_content(list_with_dicts_names)
 
-        #print(dict_with_rules)
-
         #try match phrase classes
         for phrase_class in self.phrases_classes:
             for dict_name in phrase_class.phrases_parts:
@@ -121,39 +119,33 @@ class PhrasesConditions:
                 splited_rules = rules.split(',\n')
 
                 for rule in splited_rules:
-                    #print(rule)
-                    rule = re.sub(r'\"', '', rule)
-                    rule = self._parse_rule_in_re_format(rule)
-                    print("\n", rule)
-                    if re.search(rule, phrase):
-                        print('{} matched in {} for {}'.format(phrase, rule, phrase_class.basic_phrase))
+                    formated_rule = self._parse_rule_in_re_format(rule)
+                    if re.search(r'{}'.format(formated_rule), phrase):
+                        print('"{}" matched in {} for "{}"'.format(phrase, rule, phrase_class.basic_phrase))
 
     def _parse_rule_in_re_format(self, rule):
-        #print(rule)
-        deleted_any_symbol_charecters = re.split('\s[\.\*]+\s', rule)
-        #print(deleted_any_symbol_charecters)
-        if len(deleted_any_symbol_charecters) == 1:
-            return self._sub_symbols(deleted_any_symbol_charecters[0])
-        else:
-            return rule
-        #stupid_block = re.findall('\[.*\]', rule)
-        #print(stupid_block)
-        # if stupid_block:
-        #
-
-        #rule = re.sub(r'\[|\]', r'|', rule)
-        # print(rule)
-
-    def _sub_symbols(self, rule):
-        rule = re.sub(r'\[', '(', rule)
-        rule = re.sub(r'\s', '|', rule)
-        rule = re.sub(r'\]', ')', rule)
-        #print(rule)
+        # 1) delete ' " '
+        rule = re.sub(r'\"', '', rule)
+        # 2) split rule
+        splitted_rule = re.split('\s[\.\*]+\s', rule)
+        # 3) work with parts in splitted_rule
+        rule = ""
+        for sp_rule in splitted_rule:
+            sp_rule = re.sub(r'\[', '(', sp_rule)
+            sp_rule = re.sub(r'\]', ')', sp_rule)
+            phrase_block = re.findall(r'[\[|\(](.*)[\]|\)]', sp_rule)
+            if phrase_block:
+                phrase_block = re.sub(r'\s', '|', phrase_block[0])
+                # format (x y z) in (x|y|z)
+                sp_rule = re.sub(r'\((.*)\)', "({})".format(phrase_block), sp_rule)
+                if rule:
+                    rule += " .* {}".format(sp_rule)
+                else:
+                    rule += sp_rule
+        # 4) add \b
+        rule = re.sub(r'\b([а-яА-Я]*)\b', r'\\b\1', rule)
         return rule
-    # for rule_in_dict in list(cur.fetchone()):
-    #     rule_in_dict = re.sub(r'\"', '', rule_in_dict)
-    #     if re.match(rule_in_dict, phrase):
-    #         print('{} matched in {}'.format(phrase, rule_in_dict))
+
 
 class PhraseClass:
     def __init__(self, basic_phrase, *phrases_parts, next_state="test"):
