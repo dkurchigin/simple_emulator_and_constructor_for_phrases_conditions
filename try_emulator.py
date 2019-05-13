@@ -10,8 +10,17 @@ class NewScript:
     def __init__(self, json_file):
         self.json_file = json_file
         self.database_file = json_file + ".db"
+        self.check_pure_json()
         self.load_phrases_from_json()
 
+    def check_pure_json(self):
+        with open(self.json_file, "r", encoding='utf-8') as read_file:
+            content = read_file.read()
+        #REWORK!
+        content = re.sub(r'\,(.*\n.*\})', r'\1', content)
+        with open(self.json_file, "w", encoding='utf-8') as write_file:
+            write_file.write(content)
+        
     def load_phrases_from_json(self):
         with open(self.json_file, "r", encoding='utf-8') as read_file:
             loaded_json = json.load(read_file)
